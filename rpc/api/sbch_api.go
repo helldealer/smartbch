@@ -267,15 +267,27 @@ func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interfa
 	return ret, nil
 }
 
-func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (*CallDetail, error) {
+func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (cd *CallDetail, err error) {
 	sbch.logger.Debug("sbch_call")
 
+	defer func() {
+		if r := recover(); r != nil {
+			if _err, ok := r.(error); ok {
+				err = _err
+			} else {
+				err = fmt.Errorf("%v", r)
+			}
+		}
+	}()
+
 	tx, from := createGethTxFromCallArgs(args)
-	height, err := getHeightArg(sbch.backend, blockNr)
-	if err != nil {
-		return nil, err
+	height, _err := getHeightArg(sbch.backend, blockNr)
+	if _err != nil {
+		err = _err
+		return
 	}
 
 	callDetail := sbch.backend.Call2(tx, from, height)
-	return toRpcCallDetail(callDetail), nil
+	cd = toRpcCallDetail(callDetail)
+	return
 }
