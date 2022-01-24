@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -267,27 +268,19 @@ func (sbch sbchAPI) GetTransactionReceipt(hash gethcmn.Hash) (map[string]interfa
 	return ret, nil
 }
 
-func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (cd *CallDetail, err error) {
+func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (*CallDetail, error) {
 	sbch.logger.Debug("sbch_call")
 
-	defer func() {
-		if r := recover(); r != nil {
-			if _err, ok := r.(error); ok {
-				err = _err
-			} else {
-				err = fmt.Errorf("%v", r)
-			}
-		}
-	}()
-
 	tx, from := createGethTxFromCallArgs(args)
-	height, _err := getHeightArg(sbch.backend, blockNr)
-	if _err != nil {
-		err = _err
-		return
+	height, err := getHeightArg(sbch.backend, blockNr)
+	if err != nil {
+		return nil, err
 	}
 
 	callDetail := sbch.backend.Call2(tx, from, height)
-	cd = toRpcCallDetail(callDetail)
-	return
+	cd := toRpcCallDetail(callDetail)
+	bs,_ := json.Marshal(cd)
+	fmt.Println(string(bs))
+
+	return cd, nil
 }
