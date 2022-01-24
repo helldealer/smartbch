@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -199,8 +200,19 @@ func (backend *apiBackend) Call2(tx *gethtypes.Transaction, sender common.Addres
 }
 
 func (backend *apiBackend) Call(tx *gethtypes.Transaction, sender common.Address, height int64) (statusCode int, retData []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			if err, ok := r.(error); ok {
+				fmt.Println(err.Error())
+			} else {
+				fmt.Printf("%v\n", r)
+			}
+		}
+	}()
+
 	runner, _ := backend.app.RunTxForRpc(tx, sender, false, height)
-	return runner.Status, runner.OutData
+	statusCode, retData = runner.Status, runner.OutData
+	return
 }
 
 func (backend *apiBackend) EstimateGas(tx *gethtypes.Transaction, sender common.Address, height int64) (statusCode int, retData []byte, gas int64) {
