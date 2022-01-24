@@ -279,7 +279,7 @@ func (sbch sbchAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (*
 
 	callDetail := sbch.backend.Call2(tx, from, height)
 	cd := toRpcCallDetail(callDetail)
-	bs,_ := json.Marshal(cd)
+	bs, _ := json.Marshal(cd)
 	fmt.Println(string(bs))
 
 	return cd, nil
