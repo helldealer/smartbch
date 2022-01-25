@@ -45,10 +45,10 @@ var _ PublicEthAPI = (*ethAPI)(nil)
 type PublicEthAPI interface {
 	Accounts() ([]common.Address, error)
 	BlockNumber() (hexutil.Uint64, error)
-	Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (hexutil.Bytes, error)
+	Call(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumberOrHash) (hexutil.Bytes, error)
 	ChainId() hexutil.Uint64
 	Coinbase() (common.Address, error)
-	EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumber) (hexutil.Uint64, error)
+	EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumberOrHash) (hexutil.Uint64, error)
 	GasPrice() *hexutil.Big
 	GetBalance(addr common.Address, blockNum gethrpc.BlockNumber) (*hexutil.Big, error)
 	GetBlockByHash(hash common.Hash, fullTx bool) (map[string]interface{}, error)
@@ -449,7 +449,7 @@ func (api *ethAPI) Syncing() (interface{}, error) {
 }
 
 // https://eth.wiki/json-rpc/API#eth_call
-func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr gethrpc.BlockNumber) (hexutil.Bytes, error) {
+func (api *ethAPI) Call(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumberOrHash) (hexutil.Bytes, error) {
 	atomic.AddUint64(&api.numCall, 1)
 	api.logger.Debug("eth_call", "from", addrToStr(args.From), "to", addrToStr(args.To))
 	// ignore blockNumber temporary
@@ -474,7 +474,7 @@ func addrToStr(addr *common.Address) string {
 }
 
 // https://eth.wiki/json-rpc/API#eth_estimateGas
-func (api *ethAPI) EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumber) (hexutil.Uint64, error) {
+func (api *ethAPI) EstimateGas(args rpctypes.CallArgs, blockNr *gethrpc.BlockNumberOrHash) (hexutil.Uint64, error) {
 	api.logger.Debug("eth_estimateGas")
 	tx, from, err := api.createGethTxFromCallArgs(args)
 	if err != nil {

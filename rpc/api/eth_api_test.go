@@ -70,6 +70,18 @@ var counterContractABI = ethutils.MustParseABI(`
 ]
 `)
 
+func TestBlockNumberOrHash(t *testing.T) {
+	bh := gethrpc.BlockNumberOrHash{}
+	require.NoError(t, bh.UnmarshalJSON([]byte(`"0x123"`)))
+	require.Equal(t, int64(0x123), bh.BlockNumber.Int64())
+	require.NoError(t, bh.UnmarshalJSON([]byte(`"latest"`)))
+	require.Equal(t, int64(-1), bh.BlockNumber.Int64())
+	require.NoError(t, bh.UnmarshalJSON([]byte(`{"blockNumber": "0x123"}`)))
+	require.Equal(t, int64(0x123), bh.BlockNumber.Int64())
+	require.NoError(t, bh.UnmarshalJSON([]byte(`{"blockNumber": "latest"}`)))
+	require.Equal(t, int64(-1), bh.BlockNumber.Int64())
+}
+
 func TestAccounts(t *testing.T) {
 	key1, addr1 := testutils.GenKeyAndAddr()
 	key2, addr2 := testutils.GenKeyAndAddr()
@@ -579,7 +591,7 @@ func TestCall_NoFromAddr(t *testing.T) {
 	defer _app.Destroy()
 	_api := createEthAPI(_app)
 
-	_, err := _api.Call(ethapi.CallArgs{}, -1)
+	_, err := _api.Call(ethapi.CallArgs{}, nil)
 	require.NoError(t, err)
 }
 
@@ -596,7 +608,7 @@ func TestCall_Transfer(t *testing.T) {
 		From:  &fromAddr,
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(10),
-	}, -1)
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 
@@ -604,7 +616,7 @@ func TestCall_Transfer(t *testing.T) {
 		From:  &fromAddr,
 		To:    &toAddr,
 		Value: testutils.ToHexutilBig(math.MaxInt64),
-	}, -1)
+	}, nil)
 	require.Error(t, err)
 	//require.Equal(t, []byte{}, []byte(ret))
 }
@@ -620,7 +632,7 @@ func TestCall_DeployContract(t *testing.T) {
 	ret, err := _api.Call(ethapi.CallArgs{
 		From: &fromAddr,
 		Data: testutils.ToHexutilBytes(counterContractCreationBytecode),
-	}, -1)
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, []byte{}, []byte(ret))
 }
@@ -649,7 +661,7 @@ func TestCall_RunGetter(t *testing.T) {
 		//From: &fromAddr,
 		To:   &contractAddr,
 		Data: testutils.ToHexutilBytes(data),
-	}, -1)
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000",
 		hex.EncodeToString(results))
@@ -695,7 +707,7 @@ func testRandomTransfer() {
 				From:  &fromAddr,
 				To:    &toAddr,
 				Value: testutils.ToHexutilBig(10),
-			}, -1)
+			}, nil)
 			w.Done()
 		}()
 	}
