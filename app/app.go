@@ -69,6 +69,8 @@ type App struct {
 	root         *store.RootStore
 	historyStore modbtypes.DB
 
+	serializeTrunk *store.TrunkStore
+
 	//refresh with block
 	currHeight      int64
 	trunk           *store.TrunkStore
@@ -139,6 +141,9 @@ func NewApp(config *param.ChainConfig, chainId *uint256.Int, genesisWatcherHeigh
 	app.historyStore = createHistoryStore(config, app.logger.With("module", "modb"))
 	app.trunk = app.root.GetTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	app.checkTrunk = app.root.GetReadOnlyTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
+
+	/*----set serialize store-----*/
+	app.serializeTrunk = app.root.GetTrunkStore(config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 
 	/*------set engine------*/
 	app.txEngine = ebp.NewEbpTxExec(
@@ -532,6 +537,20 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.logger.Debug("Enter commit!", "collected txs", app.txEngine.CollectedTxsCount())
 	app.mtx.Lock()
 
+	// run serialize txs
+	app.serializeTrunk = app.root.GetReadOnlyTrunkStore(app.config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
+	sCtx := app.GetSerializeRunTxContext()
+	sBi := &types.BlockInfo{
+		Coinbase:  app.block.Miner,
+		Number:    app.block.Number,
+		Timestamp: app.block.Timestamp,
+		ChainId:   app.chainId.Bytes32(),
+		Hash:      app.block.Hash,
+	}
+	app.txEngine.SetContext(sCtx)
+	app.txEngine.SerializeExecute(sBi)
+	app.txEngine.SetContext(app.GetRunTxContext())
+
 	ctx := app.GetRunTxContext()
 
 	//distribute previous block gas fee
@@ -773,7 +792,7 @@ func (app *App) Stop() {
 
 func (app *App) GetRpcContext() *types.Context {
 	c := types.NewContext(nil, nil)
-	r := rabbit.NewReadOnlyRabbitStore(app.root)
+	r := rabbit.NewRabbitStore(app.serializeTrunk)
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
 	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
@@ -781,6 +800,7 @@ func (app *App) GetRpcContext() *types.Context {
 	c.SetCurrentHeight(app.currHeight)
 	return c
 }
+
 func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 	if !app.config.AppConfig.ArchiveMode || height < 0 {
 		return app.GetRpcContext()
@@ -798,6 +818,16 @@ func (app *App) GetRpcContextAtHeight(height int64) *types.Context {
 func (app *App) GetRunTxContext() *types.Context {
 	c := types.NewContext(nil, nil)
 	r := rabbit.NewRabbitStore(app.trunk)
+	c = c.WithRbt(&r)
+	c = c.WithDb(app.historyStore)
+	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
+	c.SetXHedgeForkBlock(app.config.XHedgeForkBlock)
+	c.SetCurrentHeight(app.currHeight)
+	return c
+}
+func (app *App) GetSerializeRunTxContext() *types.Context {
+	c := types.NewContext(nil, nil)
+	r := rabbit.NewRabbitStore(app.serializeTrunk)
 	c = c.WithRbt(&r)
 	c = c.WithDb(app.historyStore)
 	c.SetShaGateForkBlock(app.config.ShaGateForkBlock)
