@@ -538,6 +538,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	app.mtx.Lock()
 
 	// run serialize txs
+	app.txEngine.Context().Close(false)
 	app.serializeTrunk = app.root.GetReadOnlyTrunkStore(app.config.AppConfig.TrunkCacheSize).(*store.TrunkStore)
 	sCtx := app.GetSerializeRunTxContext()
 	sBi := &types.BlockInfo{
@@ -549,6 +550,7 @@ func (app *App) Commit() abcitypes.ResponseCommit {
 	}
 	app.txEngine.SetContext(sCtx)
 	app.txEngine.SerializeExecute(sBi)
+	app.txEngine.Context().Close(true)
 	app.txEngine.SetContext(app.GetRunTxContext())
 
 	ctx := app.GetRunTxContext()
